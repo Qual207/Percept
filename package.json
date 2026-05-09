@@ -1,0 +1,16 @@
+{
+  "name": "ai-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Voice-controlled adaptive UI overlay for cognitive accessibility - 3-hour MVP",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
