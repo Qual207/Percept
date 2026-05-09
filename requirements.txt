@@ -1,0 +1,27 @@
+# System requirements for Adaptive Web
+# -------------------------------------------------
+# This is a Node.js project. Dependency management is handled by npm via
+# package.json + package-lock.json in each package (root, backend, frontend).
+# Run  `npm run install:all`  from the project root to install everything.
+#
+# There is no pip/Python dependency. This file lists the tools you need
+# installed on your machine before running npm.
+
+# ── Runtime ───────────────────────────────────────────────────────────────────
+node >= 20.0.0        # https://nodejs.org  (LTS recommended; .nvmrc pins v20)
+npm  >= 10.0.0        # ships with Node 20; check with: npm -v
+
+# ── Secrets (not committed, must be provided manually) ────────────────────────
+# Copy backend/.env.example → backend/.env and fill in:
+OPENAI_API_KEY        # required for the LLM intent path (gpt-4o-mini by default)
+#                       without it the keyword-fallback parser is used instead
+
+# ── Browser (for the demo) ────────────────────────────────────────────────────
+# Chrome or Edge — Web Speech API is not supported in Firefox.
+# (Typed-input fallback works in any browser.)
+
+# ── Optional: nvm (Node Version Manager) ─────────────────────────────────────
+# If you use nvm, run `nvm use` in the project root to automatically switch
+# to the correct Node version specified in .nvmrc.
+# Windows: https://github.com/coreybutler/nvm-windows
+# macOS/Linux: https://github.com/nvm-sh/nvm
