@@ -17,6 +17,7 @@ type State =
   | "single_column"
   | "warm_bg"
   | "dark_bg"
+  | "blue_green_palette"
   | "kill_animations"
   | "more_spacing"
   | "dyslexic_font"
@@ -134,6 +135,20 @@ const STATE_KEYWORDS: Record<State, string[]> = {
     "dim the screen",
     "dim screen",
     "night",
+  ],
+  blue_green_palette: [
+    "blue and green",
+    "no red",
+    "no orange",
+    "remove red",
+    "remove orange",
+    "no more red",
+    "no more orange",
+    "change colors",
+    "change the colors",
+    "recolor",
+    "different palette",
+    "blue green",
   ],
   kill_animations: [
     "stop the flashing",
@@ -264,6 +279,15 @@ const STATE_PLANS: Record<State, Plan> = {
     intensity: 0.5,
     actions: [
       { layer: "attentional", type: "setBackground", color: "dark" },
+    ],
+  },
+  blue_green_palette: {
+    reason_short: "Recolored red/orange to blue and green",
+    intensity: 0.5,
+    actions: [
+      { layer: "attentional", type: "recolor", selector: "[data-an-role='promo']", color: "blue", target: "bg" },
+      { layer: "attentional", type: "recolor", selector: "[data-an-id='product-price']", color: "green", target: "text" },
+      { layer: "attentional", type: "recolor", selector: "[data-an-id='buy-button']", color: "blue", target: "bg" },
     ],
   },
   kill_animations: {

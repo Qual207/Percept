@@ -17,10 +17,14 @@ export type ActionType =
   | "setLineHeight"
   | "setLetterSpacing"
   | "scaleElement"
+  | "recolor"
   | "spotlight"
   | "setBackground"
   | "setFontFamily"
   | "killAnimations";
+
+/** For recolor: which CSS property to recolor on the element. */
+export type ColorTarget = "bg" | "text" | "border";
 
 export interface Action {
   layer: Layer;
@@ -29,6 +33,8 @@ export interface Action {
   value?: number;
   opacity?: number;
   color?: string;
+  /** For recolor only — bg | text | border. Defaults to "bg". */
+  target?: ColorTarget;
 }
 
 export interface Plan {
@@ -43,6 +49,8 @@ export interface PageElement {
   label: string;
   selector: string;
   type: "landmark" | "heading" | "image" | "price" | "button" | "text";
+  /** Optional dominant color hint (e.g. "red", "orange", "blue") for LLM color reasoning. */
+  colorHint?: string;
 }
 
 export interface IntentRequest {

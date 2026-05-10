@@ -62,6 +62,71 @@ function excerpt(el: HTMLElement, maxLen = 60): string {
   return (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, maxLen);
 }
 
+/**
+ * Best-effort dominant color label for an element.
+ * Inspects background-color and (failing that) text color, and maps to a
+ * coarse color name the LLM can match phrases like "remove orange" against.
+ *
+ * Also peeks at a class string for tailwind clues (e.g. "bg-rose-500", "from-rose-500")
+ * since the bg can be a gradient where computed background-color is transparent.
+ */
+function colorHint(el: HTMLElement): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const NAMED: Array<[RegExp, string]> = [
+    [/red|rose|crimson|pink/, "red"],
+    [/orange|amber/, "orange"],
+    [/yellow|gold/, "yellow"],
+    [/green|emerald|lime|teal/, "green"],
+    [/blue|indigo|sky|cyan/, "blue"],
+    [/purple|violet|fuchsia|magenta/, "purple"],
+    [/black|slate-9|slate-8|gray-9|gray-8|zinc-9|zinc-8/, "black"],
+    [/white|slate-1|slate-50|gray-1|gray-50/, "white"],
+  ];
+
+  // 1. Tailwind class hints (handles gradients where computed bg is transparent)
+  const cls = el.className && typeof el.className === "string" ? el.className : "";
+  if (cls) {
+    const lower = cls.toLowerCase();
+    for (const [rx, name] of NAMED) {
+      if (rx.test(lower)) return name;
+    }
+  }
+
+  // 2. Computed background-color
+  const cs = getComputedStyle(el);
+  const bg = cs.backgroundColor;
+  const m = bg.match(/rgba?\(([^)]+)\)/);
+  if (m) {
+    const [r, g, b, a] = m[1].split(",").map((s) => parseFloat(s.trim()));
+    if (!isNaN(a) && a < 0.05) {
+      // transparent — try text color instead
+    } else {
+      return rgbToName(r, g, b);
+    }
+  }
+
+  // 3. Text color fallback
+  const fg = cs.color;
+  const fm = fg.match(/rgba?\(([^)]+)\)/);
+  if (fm) {
+    const [r, g, b] = fm[1].split(",").map((s) => parseFloat(s.trim()));
+    return rgbToName(r, g, b);
+  }
+  return undefined;
+}
+
+/** Coarse rgb→named color, ignoring near-grayscale results. */
+function rgbToName(r: number, g: number, b: number): string | undefined {
+  if (Math.max(r, g, b) - Math.min(r, g, b) < 25) return undefined; // grayscale
+  if (r > 200 && g > 200 && b < 120) return "yellow";
+  if (r > 200 && g > 130 && b < 90) return "orange";
+  if (r > 180 && g < 120 && b < 130) return "red";
+  if (r < 120 && g > 160 && b < 140) return "green";
+  if (r < 140 && g < 180 && b > 180) return "blue";
+  if (r > 130 && g < 140 && b > 170) return "purple";
+  return undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Extraction passes
 // ---------------------------------------------------------------------------
@@ -237,8 +302,19 @@ export function crawlPage(): PageElement[] {
     ...extractHeuristicElements(seenSelectors),
   ];
 
-  // Mark selectors from data-an-id pass as seen (they used their own set)
-  for (const el of catalog) seenSelectors.add(el.selector);
+  for (const entry of catalog) seenSelectors.add(entry.selector);
+
+  // Final pass: enrich each entry with a colorHint based on the live element.
+  for (const entry of catalog) {
+    try {
+      const el = document.querySelector<HTMLElement>(entry.selector);
+      if (!el) continue;
+      const hint = colorHint(el);
+      if (hint) entry.colorHint = hint;
+    } catch {
+      // ignore selector failures
+    }
+  }
 
   return catalog;
 }
