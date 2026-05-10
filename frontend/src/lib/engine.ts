@@ -18,6 +18,24 @@ interface Batch {
 
 const stack: Batch[] = [];
 
+// --- Pub-sub so React components can stay in sync with the engine -----------
+type Listener = (count: number) => void;
+const listeners = new Set<Listener>();
+
+function notify() {
+  const count = stack.length;
+  for (const l of listeners) {
+    try { l(count); } catch (err) { console.error("[engine] listener error:", err); }
+  }
+}
+
+export function subscribe(listener: Listener): () => void {
+  listeners.add(listener);
+  // Immediately fire with current state so subscribers don't have to read separately.
+  try { listener(stack.length); } catch { /* noop */ }
+  return () => { listeners.delete(listener); };
+}
+
 function ensureActiveClass() {
   if (typeof document !== "undefined") {
     document.documentElement.classList.add("an-active");
@@ -41,6 +59,7 @@ export function applyPlan(plan: Plan): void {
     }
   }
   stack.push({ reason: plan.reason_short, undos });
+  notify();
 }
 
 export function undoLast(): boolean {
@@ -49,11 +68,18 @@ export function undoLast(): boolean {
   // Undo in reverse order to mirror application order.
   for (let i = batch.undos.length - 1; i >= 0; i--) batch.undos[i]();
   maybeRemoveActiveClass();
+  notify();
   return true;
 }
 
 export function reset(): void {
-  while (stack.length > 0) undoLast();
+  if (stack.length === 0) return;
+  while (stack.length > 0) {
+    const batch = stack.pop()!;
+    for (let i = batch.undos.length - 1; i >= 0; i--) batch.undos[i]();
+  }
+  maybeRemoveActiveClass();
+  notify();
 }
 
 export function appliedBatchCount(): number {
@@ -66,4 +92,5 @@ export function appliedBatchCount(): number {
  */
 export function __resetStateForTests(): void {
   stack.length = 0;
+  notify();
 }

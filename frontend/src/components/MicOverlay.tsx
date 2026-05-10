@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { isSpeechSupported, recordOnce } from "../lib/speech";
 import { requestIntent } from "../lib/intentClient";
-import { applyPlan, undoLast, reset, appliedBatchCount } from "../lib/engine";
+import { applyPlan, undoLast, reset, subscribe } from "../lib/engine";
 import { showToast } from "./Toaster";
 import type { UserProfile } from "../lib/profile";
 
@@ -52,7 +52,7 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [liveText, setLiveText] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [batchCount, setBatchCount] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const [lastSource, setLastSource] = useState<"llm" | "fallback" | null>(null);
   // Thinking panel state
@@ -62,6 +62,10 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const thinkingStepRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const supported = isSpeechSupported();
+
+  // Stay in sync with the engine: any apply/undo/reset (from anywhere in the
+  // app, including diagnostic-completion in App.tsx) updates batchCount.
+  useEffect(() => subscribe(setBatchCount), []);
 
   // Cycle through thinking step labels while the LLM is working
   useEffect(() => {
@@ -97,7 +101,6 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
     applyPlan(plan as any);
     const src = (plan.source === "llm" ? "llm" : "fallback") as "llm" | "fallback";
     setLastSource(src);
-    setHasChanges(appliedBatchCount() > 0);
     setHistory((prev) =>
       [{ text, reason: plan.reason_short, source: src }, ...prev].slice(0, 8),
     );
@@ -158,19 +161,21 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
 
   function handleUndo() {
     const ok = undoLast();
-    setHasChanges(appliedBatchCount() > 0);
     setHistory((prev) => prev.slice(1));
     if (ok) showToast("Undone", "info");
+    else showToast("Nothing to undo", "info");
   }
 
   function handleReset() {
+    const had = batchCount > 0;
     reset();
-    setHasChanges(false);
     setHistory([]);
     setFullReasoning("");
     setDisplayedReasoning("");
     setLastSource(null);
-    showToast("Reset to original", "info");
+    setStatus("idle");
+    setLiveText("");
+    showToast(had ? "Reset to original" : "Already at original", "info");
   }
 
   const ringColor =
@@ -361,12 +366,12 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
         </button>
       </form>
 
-      {/* Undo + Reset */}
+      {/* Undo + Reset — Reset is ALWAYS clickable as a safety net */}
       <div className="flex gap-2">
         <button
           type="button"
           onClick={handleUndo}
-          disabled={!hasChanges}
+          disabled={batchCount === 0}
           className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
         >
           Undo last
@@ -374,10 +379,15 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
         <button
           type="button"
           onClick={handleReset}
-          disabled={!hasChanges}
-          className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+          className={[
+            "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition",
+            batchCount > 0
+              ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+              : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50",
+          ].join(" ")}
+          title={batchCount > 0 ? `Reset ${batchCount} change${batchCount === 1 ? "" : "s"}` : "Already at original"}
         >
-          Reset all
+          {batchCount > 0 ? `Reset all (${batchCount})` : "Reset all"}
         </button>
       </div>
 
