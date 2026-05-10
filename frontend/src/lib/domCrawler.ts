@@ -134,6 +134,7 @@ function rgbToName(r: number, g: number, b: number): string | undefined {
 function extractAnIdElements(): PageElement[] {
   const results: PageElement[] = [];
   const TYPE_MAP: Record<string, PageElement["type"]> = {
+    // Amazon demo
     "product-image": "image",
     "product-title": "heading",
     "product-price": "price",
@@ -141,26 +142,40 @@ function extractAnIdElements(): PageElement[] {
     "product-description": "text",
     "product-reviews": "text",
     ratings: "text",
+    // News demo
+    "article-headline": "heading",
+    "article-byline": "text",
+    "article-image": "image",
+    "article-body": "text",
+    "article-summary": "text",
+    "comments-section": "text",
+    "ad-banner": "landmark",
+  };
+  const LABEL_MAP: Record<string, string> = {
+    "product-image": "product image",
+    "product-title": "product title",
+    "product-price": "product price",
+    "buy-button": "Add to Cart button",
+    "product-description": "product description",
+    "product-reviews": "customer reviews",
+    ratings: "star ratings",
+    "article-headline": "article headline",
+    "article-byline": "article byline (author + date)",
+    "article-image": "lead article photo",
+    "article-body": "article body text",
+    "article-summary": "article key points summary",
+    "comments-section": "comments section",
+    "ad-banner": "top display advertisement",
   };
   for (const el of Array.from(document.querySelectorAll<HTMLElement>("[data-an-id]"))) {
     const id = el.getAttribute("data-an-id") ?? "";
     const type: PageElement["type"] = TYPE_MAP[id] ?? "text";
-    let label = id.replace(/-/g, " ");
-    if (type === "price") {
-      const priceText = excerpt(el, 20);
-      label = `product price${priceText ? `: ${priceText}` : ""}`;
-    } else if (type === "heading") {
-      label = `product title: ${excerpt(el, 50)}`;
-    } else if (type === "image") {
-      label = "product image";
-    } else if (type === "button") {
-      label = `button: ${excerpt(el, 30)}`;
-    } else if (id === "ratings") {
-      label = `star ratings: ${excerpt(el, 30)}`;
-    } else if (id === "product-description") {
-      label = "product description";
-    } else if (id === "product-reviews") {
-      label = "customer reviews";
+    let label = LABEL_MAP[id] ?? id.replace(/-/g, " ");
+    // Enrich heading labels with a text preview
+    if (type === "heading" && el.textContent) {
+      label = `${label}: ${excerpt(el, 50)}`;
+    } else if (type === "price" && el.textContent) {
+      label = `${label}: ${excerpt(el, 20)}`;
     }
     results.push({ label, selector: `[data-an-id='${id}']`, type });
   }

@@ -112,6 +112,12 @@
   transition: none !important;
 }
 
+/* Stock ticker marquee used by ChaoticNews */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 /* ----------------------------------------------------------------------------
  * Flash animation — briefly highlights elements when a change is applied.
  * -------------------------------------------------------------------------- */
