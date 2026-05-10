@@ -30,6 +30,8 @@ export interface Action {
 
 export interface Plan {
   reason_short: string;
+  /** Step-by-step thinking from the LLM: what it understood, which elements it targeted, why. */
+  reasoning?: string;
   intensity: number;
   actions: Action[];
 }

@@ -192,6 +192,7 @@ const STATE_KEYWORDS: Record<State, string[]> = {
 const STATE_PLANS: Record<State, Plan> = {
   bigger_text: {
     reason_short: "Text enlarged",
+    reasoning: "The user is finding the text too small or hard to read. I'm targeting the global font scale and line height to make all text larger and more legible across the page.",
     intensity: 0.5,
     actions: [
       { layer: "typographic", type: "setFontScale", value: 1.6 },
@@ -200,6 +201,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   smaller_text: {
     reason_short: "Text reduced",
+    reasoning: "The user wants text scaled down. I'm reducing the global font scale so more content fits comfortably on screen.",
     intensity: 0.3,
     actions: [
       { layer: "typographic", type: "setFontScale", value: 0.9 },
@@ -207,6 +209,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   hide_sidebars: {
     reason_short: "Sidebars removed",
+    reasoning: "The user is overwhelmed by too many elements competing for attention. I'm removing the left sidebar, right sidebar, and promotional banner — the three biggest sources of visual noise — so only the main content remains.",
     intensity: 0.7,
     actions: [
       { layer: "structural", type: "hide", selector: "[data-an-role='aside-left']" },
@@ -216,6 +219,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   hide_nav: {
     reason_short: "Navigation hidden",
+    reasoning: "The user wants the navigation bar out of the way. I'm hiding the nav region to reduce the top-of-page clutter and give more vertical space to the content.",
     intensity: 0.4,
     actions: [
       { layer: "structural", type: "hide", selector: "[data-an-role='nav']" },
@@ -223,6 +227,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   hide_promo: {
     reason_short: "Ads and promos removed",
+    reasoning: "The user is bothered by promotional content. I'm removing the promo banner, which is a high-distraction element designed to pull attention away from the main content.",
     intensity: 0.4,
     actions: [
       { layer: "structural", type: "hide", selector: "[data-an-role='promo']" },
@@ -230,6 +235,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   dim_sidebars: {
     reason_short: "Periphery dimmed — focus on main",
+    reasoning: "The user is losing focus due to competing elements around the main content. I'm dimming the sidebars, navigation, and footer so they fade into the background without disappearing entirely.",
     intensity: 0.5,
     actions: [
       { layer: "structural", type: "dim", selector: "[data-an-role='aside-left']", opacity: 0.08 },
@@ -240,6 +246,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   spotlight_main: {
     reason_short: "Spotlighting main content",
+    reasoning: "The user wants to focus exclusively on the main content area. I'm applying a spotlight effect that brings the main region to full brightness while softly dimming everything else around it.",
     intensity: 0.6,
     actions: [
       { layer: "attentional", type: "spotlight", selector: "[data-an-role='main']" },
@@ -247,6 +254,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   single_column: {
     reason_short: "Collapsed to single column",
+    reasoning: "The user wants a simpler, more linear layout. I'm hiding the sidebars and centering the main content into a single readable column.",
     intensity: 0.5,
     actions: [
       { layer: "structural", type: "hide", selector: "[data-an-role='aside-left']" },
@@ -256,6 +264,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   warm_bg: {
     reason_short: "Background warmed",
+    reasoning: "The user finds the page too bright or harsh on the eyes. I'm applying a warm cream background to reduce the intensity of the white screen and ease eye strain.",
     intensity: 0.3,
     actions: [
       { layer: "attentional", type: "setBackground", color: "warm" },
@@ -263,6 +272,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   dark_bg: {
     reason_short: "Dark mode enabled",
+    reasoning: "The user wants a darker visual environment. I'm switching the background to dark mode to reduce overall screen brightness and glare.",
     intensity: 0.5,
     actions: [
       { layer: "attentional", type: "setBackground", color: "dark" },
@@ -270,6 +280,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   kill_animations: {
     reason_short: "Animations stopped",
+    reasoning: "The user is experiencing distress from movement on the page — flashing elements, animated banners, or blinking content. I'm stopping all CSS animations and transitions immediately.",
     intensity: 0.6,
     actions: [
       { layer: "structural", type: "killAnimations" },
@@ -277,6 +288,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   more_spacing: {
     reason_short: "More breathing room added",
+    reasoning: "The user finds the content too densely packed. I'm increasing line height and letter spacing globally so text has more room to breathe and is easier to track line by line.",
     intensity: 0.3,
     actions: [
       { layer: "typographic", type: "setLineHeight", value: 2.0 },
@@ -285,6 +297,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   dyslexic_font: {
     reason_short: "Dyslexia-friendly font applied",
+    reasoning: "The user has indicated difficulty with standard fonts — letters may be moving or hard to distinguish. I'm switching to a dyslexia-friendly typeface with increased letter spacing and line height to improve character differentiation.",
     intensity: 0.5,
     actions: [
       { layer: "typographic", type: "setFontFamily", color: "dyslexic" },
@@ -294,6 +307,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   clean_font: {
     reason_short: "Switched to clean font",
+    reasoning: "The user wants a simpler, less decorative typeface. I'm switching to a clean sans-serif font that reduces visual noise from letter shapes.",
     intensity: 0.3,
     actions: [
       { layer: "typographic", type: "setFontFamily", color: "clean" },
@@ -302,6 +316,7 @@ const STATE_PLANS: Record<State, Plan> = {
   // Named modes — full presets only when explicitly requested
   flow_mode: {
     reason_short: "Flow mode — deep reading",
+    reasoning: "The user is entering a deep reading or study session. I'm applying the full flow mode preset: hiding all sidebars and promotions, centering the main column at a comfortable width, scaling up the font, and warming the background for sustained focus.",
     intensity: 0.85,
     actions: [
       { layer: "structural", type: "hide", selector: "[data-an-role='aside-left']" },
@@ -320,6 +335,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   scan_mode: {
     reason_short: "Scan mode — quick overview",
+    reasoning: "The user wants to scan the page quickly without deep reading. I'm hiding sidebars, centering the content, and applying a slightly larger font with generous letter spacing to make headlines and key points easy to skim.",
     intensity: 0.6,
     actions: [
       { layer: "structural", type: "hide", selector: "[data-an-role='aside-left']" },
@@ -332,6 +348,7 @@ const STATE_PLANS: Record<State, Plan> = {
   },
   rest_mode: {
     reason_short: "Rest mode — soft and slow",
+    reasoning: "The user is tired or in a low-energy state and needs the page to feel gentle. I'm removing almost all surrounding elements, stopping animations, maximizing font size and spacing, and applying a warm background so the reading experience is as calm as possible.",
     intensity: 0.9,
     actions: [
       { layer: "structural", type: "hide", selector: "[data-an-role='aside-left']" },
@@ -362,9 +379,11 @@ function mergePlans(plans: Plan[]): Plan {
   const map = new Map<string, Plan["actions"][number]>();
   let intensity = 0;
   const reasons: string[] = [];
+  const reasonings: string[] = [];
   for (const p of plans) {
     intensity = Math.max(intensity, p.intensity);
     reasons.push(p.reason_short);
+    if (p.reasoning) reasonings.push(p.reasoning);
     for (const a of p.actions) {
       const key = `${a.layer}:${a.type}:${a.selector ?? a.color ?? ""}`;
       map.set(key, a);
@@ -372,6 +391,7 @@ function mergePlans(plans: Plan[]): Plan {
   }
   return {
     reason_short: reasons.join(" + "),
+    reasoning: reasonings.join(" "),
     intensity,
     actions: Array.from(map.values()),
   };
@@ -382,6 +402,7 @@ export function fallbackPlan(transcript: string): Plan {
   if (states.length === 0) {
     return {
       reason_short: "Didn't catch a specific change — try being explicit",
+      reasoning: `I heard "${transcript}" but couldn't match it to a known action. Try phrases like "make the text bigger", "hide the sidebars", or "flow mode".`,
       intensity: 0,
       actions: [],
     };

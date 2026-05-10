@@ -12,17 +12,11 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile>(() => loadProfile());
   const [diagnosticOpen, setDiagnosticOpen] = useState(false);
 
-  // On mount: if we already have a calibrated profile (returning user),
-  // apply the baseline immediately so the page reflects their preferences
-  // before they've said a word.
+  // On mount: always start completely fresh — clear any DOM mutations left
+  // by HMR or a previous session. Profile preferences are NOT auto-applied
+  // here; they only take effect when the user explicitly completes the form.
   useEffect(() => {
-    const saved = loadProfile();
-    if (saved.calibrated) {
-      const baseline = buildProfileBaseline(saved);
-      if (baseline.actions.length > 0) {
-        applyPlan(baseline);
-      }
-    }
+    reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally empty — only runs on first mount
 

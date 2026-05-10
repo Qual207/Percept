@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { isSpeechSupported, recordOnce } from "../lib/speech";
 import { requestIntent } from "../lib/intentClient";
 import { applyPlan, undoLast, reset, appliedBatchCount } from "../lib/engine";
@@ -17,6 +17,14 @@ interface HistoryEntry {
   reason: string;
   source?: string;
 }
+
+const THINKING_STEPS = [
+  "Sending transcript to OpenAI…",
+  "Reading page structure…",
+  "Identifying relevant elements…",
+  "Building action plan…",
+  "Finalizing changes…",
+];
 
 const PROMPT_HINTS = [
   "Make the text bigger",
@@ -46,29 +54,84 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [lastSource, setLastSource] = useState<"llm" | "fallback" | null>(null);
+  // Thinking panel state
+  const [fullReasoning, setFullReasoning] = useState("");
+  const [displayedReasoning, setDisplayedReasoning] = useState("");
+  const [thinkingStep, setThinkingStep] = useState(0);
+  const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const thinkingStepRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const supported = isSpeechSupported();
 
-  function afterApply(text: string, plan: { reason_short: string; source?: string }) {
+  // Cycle through thinking step labels while the LLM is working
+  useEffect(() => {
+    if (status === "thinking") {
+      setThinkingStep(0);
+      thinkingStepRef.current = setInterval(() => {
+        setThinkingStep((s) => Math.min(s + 1, THINKING_STEPS.length - 1));
+      }, 900);
+    } else {
+      if (thinkingStepRef.current) clearInterval(thinkingStepRef.current);
+    }
+    return () => { if (thinkingStepRef.current) clearInterval(thinkingStepRef.current); };
+  }, [status]);
+
+  // Typewriter effect: reveal reasoning text character by character
+  useEffect(() => {
+    if (!fullReasoning) { setDisplayedReasoning(""); return; }
+    if (typewriterRef.current) clearInterval(typewriterRef.current);
+    setDisplayedReasoning("");
+    let i = 0;
+    typewriterRef.current = setInterval(() => {
+      i++;
+      setDisplayedReasoning(fullReasoning.slice(0, i));
+      if (i >= fullReasoning.length) {
+        clearInterval(typewriterRef.current!);
+        typewriterRef.current = null;
+      }
+    }, 16);
+    return () => { if (typewriterRef.current) clearInterval(typewriterRef.current); };
+  }, [fullReasoning]);
+
+  function afterApply(text: string, plan: { reason_short: string; reasoning?: string; source?: string }) {
     applyPlan(plan as any);
+    const src = (plan.source === "llm" ? "llm" : "fallback") as "llm" | "fallback";
+    setLastSource(src);
     setHasChanges(appliedBatchCount() > 0);
     setHistory((prev) =>
-      [{ text, reason: plan.reason_short, source: (plan as any).source }, ...prev].slice(0, 8),
+      [{ text, reason: plan.reason_short, source: src }, ...prev].slice(0, 8),
     );
+    if (plan.reasoning) setFullReasoning(plan.reasoning);
     showToast(plan.reason_short || "Adapting layout", "info");
     setStatus("applied");
     flashChangedElements();
+  }
+
+  function startRequest(text: string, formToReset?: HTMLFormElement) {
+    setLiveText(text);
+    setFullReasoning("");
+    setLastSource(null);
+    setStatus("thinking");
+    requestIntent(text, profile)
+      .then((plan) => {
+        afterApply(text, plan);
+        formToReset?.reset();
+      })
+      .catch(() => {
+        showToast("Something went wrong", "warn");
+        setStatus("error");
+      });
   }
 
   async function handleRecord() {
     if (status === "listening" || status === "thinking") return;
     setStatus("listening");
     setLiveText("");
+    setFullReasoning("");
+    setLastSource(null);
     try {
       const text = await recordOnce();
-      setLiveText(text);
-      setStatus("thinking");
-      const plan = await requestIntent(text, profile);
-      afterApply(text, plan);
+      startRequest(text);
     } catch (err: any) {
       const msg = String(err?.message ?? err);
       if (msg.includes("not-allowed") || msg.includes("denied")) {
@@ -90,17 +153,7 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
     const data = new FormData(form);
     const text = String(data.get("transcript") ?? "").trim();
     if (!text) return;
-    setLiveText(text);
-    setStatus("thinking");
-    requestIntent(text, profile)
-      .then((plan) => {
-        afterApply(text, plan);
-        form.reset();
-      })
-      .catch(() => {
-        showToast("Something went wrong", "warn");
-        setStatus("error");
-      });
+    startRequest(text, form);
   }
 
   function handleUndo() {
@@ -114,6 +167,9 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
     reset();
     setHasChanges(false);
     setHistory([]);
+    setFullReasoning("");
+    setDisplayedReasoning("");
+    setLastSource(null);
     showToast("Reset to original", "info");
   }
 
@@ -132,8 +188,11 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
     status === "listening"
       ? "Listening…"
       : status === "thinking"
-        ? "Adapting…"
+        ? "Querying OpenAI…"
         : liveText || "Click the mic and tell me how you feel";
+
+  const isFallback = lastSource === "fallback";
+  const showThinkingPanel = status === "thinking" || (status === "applied" && (fullReasoning || lastSource));
 
   return (
     <div
@@ -185,6 +244,104 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
         <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-800">
           Voice unavailable in this browser. Use Chrome / Edge for mic support.
         </p>
+      )}
+
+      {/* ── Agent thinking panel ─────────────────────────────────────── */}
+      {showThinkingPanel && (
+        <div
+          className={[
+            "rounded-xl border p-3",
+            status === "thinking"
+              ? "border-indigo-100 bg-indigo-50/80"
+              : isFallback
+                ? "border-amber-200 bg-amber-50"
+                : "border-emerald-100 bg-emerald-50/60",
+          ].join(" ")}
+        >
+          {/* Panel header */}
+          <div className="mb-2 flex items-center gap-2">
+            {status === "thinking" ? (
+              <>
+                <span className="flex gap-0.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce"
+                      style={{ animationDelay: `${i * 150}ms` }}
+                    />
+                  ))}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">
+                  OpenAI agent
+                </span>
+              </>
+            ) : isFallback ? (
+              <>
+                <span className="text-sm">⚠</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                  LLM Not Found: Fallback
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-sm">✦</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                  OpenAI · applied
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* While thinking: cycling step labels */}
+          {status === "thinking" && (
+            <div className="space-y-1">
+              {THINKING_STEPS.slice(0, thinkingStep + 1).map((step, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  {i < thinkingStep ? (
+                    <span className="text-[10px] text-indigo-300">✓</span>
+                  ) : (
+                    <span className="inline-block h-1 w-1 rounded-full bg-indigo-400 animate-pulse" />
+                  )}
+                  <span
+                    className={[
+                      "text-xs",
+                      i < thinkingStep ? "text-indigo-300 line-through" : "text-indigo-600 font-medium",
+                    ].join(" ")}
+                  >
+                    {step}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* After response: typewriter reasoning */}
+          {status !== "thinking" && displayedReasoning && (
+            <p
+              className={[
+                "text-xs leading-relaxed",
+                isFallback ? "text-amber-800" : "text-emerald-800",
+              ].join(" ")}
+            >
+              {displayedReasoning}
+              {displayedReasoning.length < fullReasoning.length && (
+                <span
+                  className={[
+                    "ml-0.5 inline-block h-3 w-0.5 animate-pulse align-middle",
+                    isFallback ? "bg-amber-500" : "bg-emerald-500",
+                  ].join(" ")}
+                />
+              )}
+            </p>
+          )}
+
+          {/* Fallback with no reasoning text */}
+          {status !== "thinking" && isFallback && !displayedReasoning && (
+            <p className="text-xs text-amber-700">
+              OpenAI was unreachable. A keyword-based rule matched your request instead.
+            </p>
+          )}
+        </div>
       )}
 
       {/* Text input */}
@@ -242,10 +399,17 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
           {history.map((entry, i) => (
             <div key={i} className="rounded-md bg-slate-50 px-2.5 py-1.5">
               <div className="text-xs font-medium text-slate-700">"{entry.text}"</div>
-              <div className="mt-0.5 text-[11px] text-slate-400">
-                {entry.reason}
+              <div className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                <span>{entry.reason}</span>
                 {entry.source === "fallback" && (
-                  <span className="ml-1 text-amber-500">(offline)</span>
+                  <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-medium text-amber-600">
+                    fallback
+                  </span>
+                )}
+                {entry.source === "llm" && (
+                  <span className="rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-medium text-emerald-600">
+                    OpenAI
+                  </span>
                 )}
               </div>
             </div>
@@ -261,16 +425,7 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
             key={i}
             type="button"
             className="rounded-full bg-slate-100 px-2 py-0.5 hover:bg-slate-200 hover:text-slate-700"
-            onClick={() => {
-              setLiveText(p);
-              setStatus("thinking");
-              requestIntent(p, profile)
-                .then((plan) => afterApply(p, plan))
-                .catch(() => {
-                  showToast("Something went wrong", "warn");
-                  setStatus("error");
-                });
-            }}
+            onClick={() => startRequest(p)}
           >
             {p}
           </button>

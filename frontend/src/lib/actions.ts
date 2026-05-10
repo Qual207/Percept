@@ -11,10 +11,20 @@ import type { Action } from "../types/intent";
 export type Undo = () => void;
 const NOOP: Undo = () => {};
 
+/** Roles that belong to the engine's own UI and must never be mutated. */
+const PROTECTED_ROLES = new Set(["mic-overlay", "toaster"]);
+
+function isProtected(el: HTMLElement): boolean {
+  const role = el.getAttribute("data-an-role");
+  return !!role && PROTECTED_ROLES.has(role);
+}
+
 function $$(selector: string): HTMLElement[] {
   if (!selector || typeof document === "undefined") return [];
   try {
-    return Array.from(document.querySelectorAll<HTMLElement>(selector));
+    return Array.from(document.querySelectorAll<HTMLElement>(selector)).filter(
+      (el) => !isProtected(el)
+    );
   } catch {
     return [];
   }
@@ -213,9 +223,10 @@ function spotlight(selector: string): Undo {
   const target = targets[0];
   const undos: Undo[] = [addClass(target, "an-spotlight")];
 
-  // Dim every other data-an-role region to near-zero
+  // Dim every other data-an-role region to near-zero (never touch overlay UI)
   for (const el of Array.from(document.querySelectorAll<HTMLElement>("[data-an-role]"))) {
     if (el === target || target.contains(el) || el.contains(target)) continue;
+    if (isProtected(el)) continue;
     const restoreOpacity = snapshotInline(el, "--an-dim-opacity");
     el.style.setProperty("--an-dim-opacity", "0.08");
     const restoreClass = addClass(el, "an-dim");

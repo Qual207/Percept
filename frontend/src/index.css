@@ -91,6 +91,28 @@
 }
 
 /* ----------------------------------------------------------------------------
+ * Overlay protection — the engine's own UI elements can never be touched.
+ * These rules beat every engine class (.an-dim, .an-hidden, etc.) with !important.
+ * -------------------------------------------------------------------------- */
+[data-an-role="mic-overlay"],
+[data-an-role="toaster"] {
+  opacity: 1 !important;
+  filter: none !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  /* Counter-scale against root font-size changes so the overlay stays readable */
+  font-size: calc(14px / var(--an-font-scale, 1)) !important;
+}
+
+/* Prevent engine transition rules from animating the overlay */
+[data-an-role="mic-overlay"],
+[data-an-role="mic-overlay"] *,
+[data-an-role="toaster"],
+[data-an-role="toaster"] * {
+  transition: none !important;
+}
+
+/* ----------------------------------------------------------------------------
  * Flash animation — briefly highlights elements when a change is applied.
  * -------------------------------------------------------------------------- */
 @keyframes an-flash-in {

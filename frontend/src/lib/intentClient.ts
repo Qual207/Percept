@@ -15,6 +15,7 @@ export async function requestIntent(
   const pageElements = crawlPage();
 
   try {
+    console.log(`[intent] → POST ${BACKEND_URL}/api/intent  (transcript: "${transcript}")`);
     const res = await fetch(`${BACKEND_URL}/api/intent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -27,9 +28,19 @@ export async function requestIntent(
     });
     if (!res.ok) throw new Error(`backend_${res.status}`);
     const json = (await res.json()) as IntentResponse;
+    console.log(`[intent] ← ${json.source ?? "?"}  reason: "${json.reason_short}"`);
     return { ...scaleWithProfile(json, profile), source: json.source };
   } catch (err) {
-    console.warn("[intent] backend unreachable, using local fallback:", err);
+    // Log VERY visibly — in dev this is almost always (a) backend down,
+    // (b) wrong port, or (c) CORS rejecting the origin.
+    console.error(
+      "[intent] FAILED to reach backend — falling back to keyword parser.\n" +
+      `  URL:    ${BACKEND_URL}/api/intent\n` +
+      `  Origin: ${typeof window !== "undefined" ? window.location.origin : "unknown"}\n` +
+      `  Error:  ${err instanceof Error ? err.message : String(err)}\n` +
+      `  Tip:    Open Network tab — if you see a CORS error, the backend doesn't allow this origin.`,
+      err,
+    );
     const plan = fallbackPlan(transcript);
     return { ...scaleWithProfile(plan, profile), source: "fallback" };
   }

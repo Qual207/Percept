@@ -46,6 +46,12 @@ NAMED MODES — apply full preset only when user explicitly says the mode name:
   "rest mode"     → hide aside-left + aside-right + promo + footer, dim nav 0.08, setFontScale 1.6, setLineHeight 2.0, setBackground warm, setLetterSpacing 0.04, killAnimations
 
 reason_short: one short sentence (max 60 chars) saying what changed.
+reasoning: 2-3 sentences of step-by-step thinking, written as if thinking aloud:
+  1. What the user is experiencing or requesting (interpret their words literally and emotionally).
+  2. Which specific elements are relevant to their request and why.
+  3. What you are changing and how it will help them.
+  Be specific about element names. Write in present tense.
+  Example: "The user wants the review text to be easier to read. I'm targeting the main content area since the reviews live there. I'll increase the font scale and line height to make the text larger and more scannable."
 For unused action fields, use null.
 
 Return only the structured plan.`;
@@ -60,6 +66,10 @@ const PLAN_SCHEMA = {
       reason_short: {
         type: "string",
         description: "Short user-facing rationale (max ~60 chars).",
+      },
+      reasoning: {
+        type: "string",
+        description: "2-3 sentence step-by-step thinking: what the user wants, which elements are targeted, what will change and why.",
       },
       intensity: {
         type: "number",
@@ -101,7 +111,7 @@ const PLAN_SCHEMA = {
         },
       },
     },
-    required: ["reason_short", "intensity", "actions"],
+    required: ["reason_short", "reasoning", "intensity", "actions"],
   },
 } as const;
 
