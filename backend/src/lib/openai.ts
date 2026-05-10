@@ -38,7 +38,14 @@ Layer "typographic":
 
 Layer "attentional":
   - spotlight     selector required — dim everything else, focus on one element
-  - setBackground color: "warm" | "cream" | "dark" | "gray" | "white"
+  - setBackground color: "warm" | "cream" | "dark" | "gray" | "white" | "blue" | "green" — paints the WHOLE page background. Use only when user wants a uniform page-wide color/mood change.
+  - recolor       selector + color + target ("bg" | "text" | "border", default "bg") — recolor one specific element. Color can be a name ("blue", "green", "teal") or hex ("#1e40af"). USE THIS when the user names a color change for specific things ("change the orange button to blue", "no more red").
+
+COLOR-SWAP STRATEGY:
+- Each page element in the catalog has an optional colorHint ("red", "orange", "blue", etc.).
+- When the user says "no red" or "no orange" or "change red/orange to blue/green" → emit one recolor per element whose colorHint matches the disliked color, mapping it to the requested target color.
+- When the user says "make the page blue" → use setBackground "blue" once.
+- When the user says "change everything red to green" → recolor every element with colorHint "red" to green, target "bg" for landmarks/buttons, target "text" for headings/text.
 
 NAMED MODES — apply full preset only when user explicitly says the mode name:
   "flow mode"     → hide [data-an-role='aside-left'] + [data-an-role='aside-right'] + [data-an-role='promo'], dim [data-an-role='nav'] 0.1, centerMain [data-an-role='main'], setFontScale 1.5, setMaxWidth 660, setLineHeight 1.9, setBackground warm, spotlight [data-an-role='main']
@@ -100,14 +107,20 @@ const PLAN_SCHEMA = {
                 "setFontFamily",
                 "spotlight",
                 "setBackground",
+                "recolor",
               ],
             },
             selector: { type: ["string", "null"] },
             value: { type: ["number", "null"] },
             opacity: { type: ["number", "null"] },
             color: { type: ["string", "null"] },
+            target: {
+              type: ["string", "null"],
+              enum: ["bg", "text", "border", null],
+              description: "Only used by recolor. Defaults to 'bg' if null.",
+            },
           },
-          required: ["layer", "type", "selector", "value", "opacity", "color"],
+          required: ["layer", "type", "selector", "value", "opacity", "color", "target"],
         },
       },
     },
@@ -122,9 +135,10 @@ function isKeyMissing(): boolean {
 
 function formatElementCatalog(elements: PageElement[]): string {
   if (elements.length === 0) return "Page elements: none detected";
-  const lines = elements.map(
-    (el) => `  - [${el.type}] ${el.label} → ${el.selector}`,
-  );
+  const lines = elements.map((el) => {
+    const tag = el.colorHint ? `[${el.type}, ${el.colorHint}]` : `[${el.type}]`;
+    return `  - ${tag} ${el.label} → ${el.selector}`;
+  });
   return `Page elements:\n${lines.join("\n")}`;
 }
 

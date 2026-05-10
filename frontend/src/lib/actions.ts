@@ -139,23 +139,31 @@ function setLetterSpacing(value: number): Undo {
 }
 
 /**
- * Scale just one specific element's font-size without touching the root.
- * value is a multiplier relative to the element's current computed font-size.
- * e.g. value=2 → double the element's current font size.
+ * Scale a specific element AND all its text-bearing descendants.
+ * Frameworks like Tailwind set absolute font-sizes on children (text-2xl, text-xs),
+ * which override a parent's font-size. To make scaleElement actually visible,
+ * we walk the subtree and multiply every element's *computed* font-size in place.
  */
 function scaleElement(selector: string, value: number): Undo {
   if (typeof document === "undefined") return NOOP;
   const undos: Undo[] = [];
-  for (const el of $$(selector)) {
-    const computed = parseFloat(getComputedStyle(el).fontSize) || 16;
-    const prev = el.style.fontSize;
-    const prevTransition = el.style.transition;
-    el.style.transition = "font-size 400ms cubic-bezier(0.4,0,0.2,1)";
-    el.style.fontSize = `${computed * value}px`;
-    undos.push(() => {
-      el.style.fontSize = prev;
-      el.style.transition = prevTransition;
-    });
+  const targets = $$(selector);
+  for (const root of targets) {
+    const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+    for (const el of all) {
+      if (isProtected(el)) continue;
+      const computed = parseFloat(getComputedStyle(el).fontSize) || 16;
+      const prev = el.style.fontSize;
+      const prevPriority = el.style.getPropertyPriority("font-size");
+      const prevTransition = el.style.transition;
+      el.style.transition = "font-size 400ms cubic-bezier(0.4,0,0.2,1)";
+      el.style.setProperty("font-size", `${computed * value}px`, "important");
+      undos.push(() => {
+        if (prev) el.style.setProperty("font-size", prev, prevPriority);
+        else el.style.removeProperty("font-size");
+        el.style.transition = prevTransition;
+      });
+    }
   }
   return () => undos.forEach((u) => u());
 }
@@ -190,25 +198,120 @@ const BG_COLORS: Record<string, { bg: string; text?: string }> = {
   dark: { bg: "#1a1a2e", text: "#dde1e7" },
   gray: { bg: "#f4f4f4" },
   white: { bg: "#ffffff" },
+  blue: { bg: "#dbeafe", text: "#1e3a8a" },
+  green: { bg: "#dcfce7", text: "#14532d" },
+  rose: { bg: "#ffe4e6" },
+  amber: { bg: "#fef3c7" },
 };
 
+/**
+ * Apply the page background to <html>, <body>, AND the top-level chaotic wrapper.
+ * Tailwind sets explicit bg classes on the outer div, which cover <body>; we
+ * have to override that wrapper too or the change is invisible.
+ */
 function setBackground(color: string): Undo {
   if (typeof document === "undefined") return NOOP;
   const resolved = BG_COLORS[color] ?? { bg: color };
-  const body = document.body;
-  const prevBg = body.style.backgroundColor;
-  const prevColor = body.style.color;
-  const prevTransition = body.style.transition;
+  const undos: Undo[] = [];
 
-  body.style.transition = "background-color 500ms ease, color 500ms ease";
-  body.style.backgroundColor = resolved.bg;
-  if (resolved.text) body.style.color = resolved.text;
+  const targets: HTMLElement[] = [
+    document.documentElement,
+    document.body,
+  ];
+  // Top-level chaotic wrapper (first child of #root)
+  const wrapper = document.querySelector<HTMLElement>("#root > div");
+  if (wrapper) targets.push(wrapper);
 
-  return () => {
-    body.style.backgroundColor = prevBg;
-    body.style.color = prevColor;
-    body.style.transition = prevTransition;
+  for (const el of targets) {
+    const prevBg = el.style.getPropertyValue("background-color");
+    const prevBgPriority = el.style.getPropertyPriority("background-color");
+    const prevColor = el.style.getPropertyValue("color");
+    const prevColorPriority = el.style.getPropertyPriority("color");
+    const prevTransition = el.style.transition;
+
+    el.style.transition = "background-color 500ms ease, color 500ms ease";
+    el.style.setProperty("background-color", resolved.bg, "important");
+    if (resolved.text) el.style.setProperty("color", resolved.text, "important");
+
+    undos.push(() => {
+      if (prevBg) el.style.setProperty("background-color", prevBg, prevBgPriority);
+      else el.style.removeProperty("background-color");
+      if (prevColor) el.style.setProperty("color", prevColor, prevColorPriority);
+      else el.style.removeProperty("color");
+      el.style.transition = prevTransition;
+    });
+  }
+  return () => undos.forEach((u) => u());
+}
+
+/**
+ * Recolor a specific element's background, text, or border with !important
+ * so it overrides Tailwind utility classes. Color can be any CSS color value
+ * ("blue", "#1e40af", "rgb(...)") or one of our palette names.
+ */
+function recolor(
+  selector: string,
+  color: string,
+  target: "bg" | "text" | "border" = "bg",
+): Undo {
+  if (typeof document === "undefined") return NOOP;
+  const PALETTE: Record<string, string> = {
+    blue: "#3b82f6",
+    green: "#22c55e",
+    teal: "#14b8a6",
+    indigo: "#6366f1",
+    red: "#ef4444",
+    rose: "#f43f5e",
+    orange: "#f97316",
+    amber: "#f59e0b",
+    yellow: "#eab308",
+    purple: "#a855f7",
+    gray: "#6b7280",
+    slate: "#475569",
+    white: "#ffffff",
+    black: "#0f172a",
   };
+  const resolved = PALETTE[color.toLowerCase()] ?? color;
+  const propMap = {
+    bg: "background-color",
+    text: "color",
+    border: "border-color",
+  } as const;
+  const prop = propMap[target];
+
+  const undos: Undo[] = [];
+  for (const el of $$(selector)) {
+    // Apply to the element AND its descendants for backgrounds/text — Tailwind
+    // utility classes on children otherwise override the parent.
+    const all = [el, ...Array.from(el.querySelectorAll<HTMLElement>("*"))];
+    for (const node of all) {
+      if (isProtected(node)) continue;
+      const prev = node.style.getPropertyValue(prop);
+      const prevPriority = node.style.getPropertyPriority(prop);
+      const prevTransition = node.style.transition;
+      node.style.transition = `${prop} 400ms ease`;
+      node.style.setProperty(prop, resolved, "important");
+      // For backgrounds, also force backgroundImage off so Tailwind gradients
+      // (`bg-gradient-to-r ...`) don't paint over our solid color.
+      let restoreBgImage: (() => void) | null = null;
+      if (target === "bg") {
+        const prevImg = node.style.getPropertyValue("background-image");
+        const prevImgPriority = node.style.getPropertyPriority("background-image");
+        node.style.setProperty("background-image", "none", "important");
+        restoreBgImage = () => {
+          if (prevImg) node.style.setProperty("background-image", prevImg, prevImgPriority);
+          else node.style.removeProperty("background-image");
+        };
+      }
+      undos.push(() => {
+        if (prev) node.style.setProperty(prop, prev, prevPriority);
+        else node.style.removeProperty(prop);
+        if (restoreBgImage) restoreBgImage();
+        node.style.transition = prevTransition;
+      });
+    }
+  }
+  return () => undos.forEach((u) => u());
 }
 
 /**
@@ -277,6 +380,10 @@ export function executeAction(action: Action): Undo {
       return action.selector ? spotlight(action.selector) : NOOP;
     case "setBackground":
       return action.color ? setBackground(action.color) : NOOP;
+    case "recolor":
+      return action.selector && action.color
+        ? recolor(action.selector, action.color, action.target ?? "bg")
+        : NOOP;
     default:
       return NOOP;
   }

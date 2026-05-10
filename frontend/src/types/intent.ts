@@ -14,10 +14,13 @@ export type ActionType =
   | "setLineHeight"
   | "setLetterSpacing"
   | "scaleElement"
+  | "recolor"
   | "spotlight"
   | "setBackground"
   | "setFontFamily"
   | "killAnimations";
+
+export type ColorTarget = "bg" | "text" | "border";
 
 export interface Action {
   layer: Layer;
@@ -26,6 +29,7 @@ export interface Action {
   value?: number;
   opacity?: number;
   color?: string;
+  target?: ColorTarget;
 }
 
 export interface Plan {
@@ -40,6 +44,7 @@ export interface PageElement {
   label: string;
   selector: string;
   type: "landmark" | "heading" | "image" | "price" | "button" | "text";
+  colorHint?: string;
 }
 
 export interface IntentResponse extends Plan {
