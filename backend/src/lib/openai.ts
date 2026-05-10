@@ -91,6 +91,7 @@ function isKeyMissing(): boolean {
 export async function planFromOpenAI(
   transcript: string,
   domSummary: string[] | undefined,
+  profileSummary: string | undefined,
 ): Promise<Plan | null> {
   if (isKeyMissing()) return null;
 
@@ -102,6 +103,9 @@ export async function planFromOpenAI(
     domSummary && domSummary.length > 0
       ? `Page landmarks present: ${domSummary.join(", ")}`
       : "Page landmarks: unknown",
+    profileSummary
+      ? profileSummary
+      : "User profile: not yet calibrated (use defaults).",
   ].join("\n\n");
 
   try {
