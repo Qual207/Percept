@@ -381,14 +381,42 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
         </button>
       </div>
 
-      {/* Diagnostic / calibration link */}
-      <button
-        type="button"
-        onClick={onOpenDiagnostic}
-        className="text-left text-[11px] text-slate-400 hover:text-slate-600"
-      >
-        {profile.calibrated ? "Recalibrate preferences →" : "Calibrate for your needs →"}
-      </button>
+      {/* Diagnostic / calibration CTA — prominent when uncalibrated */}
+      {profile.calibrated ? (
+        <button
+          type="button"
+          onClick={onOpenDiagnostic}
+          className="flex items-center justify-between gap-2 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-left text-xs font-medium text-indigo-700 transition hover:border-indigo-200 hover:bg-indigo-100"
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="text-sm">✓</span>
+            <span>Preferences calibrated</span>
+          </span>
+          <span className="text-[11px] text-indigo-500">Recalibrate →</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpenDiagnostic}
+          className="group relative flex items-center justify-between gap-2 overflow-hidden rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 px-3.5 py-2.5 text-left text-sm font-semibold text-white shadow-md ring-2 ring-indigo-200 ring-offset-2 transition hover:scale-[1.02] hover:shadow-lg active:scale-[0.99]"
+        >
+          {/* Subtle shimmer */}
+          <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700" />
+          <span className="flex items-center gap-2">
+            <span className="text-base">✦</span>
+            <span className="flex flex-col leading-tight">
+              <span>Calibrate for your needs</span>
+              <span className="text-[10px] font-normal text-indigo-100">30-second visual check-in</span>
+            </span>
+          </span>
+          <span className="text-base">→</span>
+          {/* Pulsing dot in corner */}
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500" />
+          </span>
+        </button>
+      )}
 
       {/* Transcript history */}
       {showHistory && history.length > 0 && (
