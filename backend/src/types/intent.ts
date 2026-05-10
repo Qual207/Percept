@@ -15,7 +15,12 @@ export type ActionType =
   | "setFontScale"
   | "setMaxWidth"
   | "setLineHeight"
-  | "spotlight";
+  | "setLetterSpacing"
+  | "scaleElement"
+  | "spotlight"
+  | "setBackground"
+  | "setFontFamily"
+  | "killAnimations";
 
 export interface Action {
   layer: Layer;
@@ -23,6 +28,7 @@ export interface Action {
   selector?: string;
   value?: number;
   opacity?: number;
+  color?: string;
 }
 
 export interface Plan {
@@ -31,9 +37,16 @@ export interface Plan {
   actions: Action[];
 }
 
+export interface PageElement {
+  label: string;
+  selector: string;
+  type: "landmark" | "heading" | "image" | "price" | "button" | "text";
+}
+
 export interface IntentRequest {
   transcript: string;
   domSummary?: string[];
+  pageElements?: PageElement[];
 }
 
 export interface IntentResponse extends Plan {

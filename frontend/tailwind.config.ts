@@ -8,6 +8,7 @@ export default {
     "an-spotlight",
     "an-reflow-center",
     "an-active",
+    "an-flash",
   ],
   theme: { extend: {} },
   plugins: [],

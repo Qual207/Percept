@@ -133,7 +133,7 @@ export function ChaoticAmazon() {
         >
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-12 md:col-span-5">
-              <div className="grid aspect-square place-items-center rounded bg-slate-100 text-6xl">
+              <div data-an-id="product-image" className="grid aspect-square place-items-center rounded bg-slate-100 text-6xl">
                 🔌
               </div>
               <div className="mt-2 grid grid-cols-5 gap-1.5">
@@ -147,12 +147,12 @@ export function ChaoticAmazon() {
 
             <div className="col-span-12 space-y-2 md:col-span-7">
               <div className="text-xs text-cyan-700">‹ Visit the Anker Store</div>
-              <h1 className="text-xl font-bold leading-snug">
+              <h1 data-an-id="product-title" className="text-xl font-bold leading-snug">
                 Anker 6ft Premium Nylon-Braided USB-C to USB-C Cable, 100W Fast Charging,
                 MFi Certified, Compatible with iPhone 15 / iPad Pro / MacBook Pro / Galaxy
                 S24, Black (3-Pack)
               </h1>
-              <div className="flex items-center gap-2 text-sm">
+              <div data-an-id="ratings" className="flex items-center gap-2 text-sm">
                 <span className="text-amber-500">★★★★☆</span>
                 <a href="#" className="text-cyan-700 hover:underline">12,402 ratings</a>
                 <span className="text-slate-400">|</span>
@@ -162,7 +162,7 @@ export function ChaoticAmazon() {
                 #1 Best Seller in USB-C Cables
               </div>
 
-              <div className="border-y border-slate-200 py-2">
+              <div data-an-id="product-price" className="border-y border-slate-200 py-2">
                 <div className="text-xs text-slate-500 line-through">List Price: $19.99</div>
                 <div className="text-2xl">
                   <span className="align-top text-sm">$</span>
@@ -189,7 +189,7 @@ export function ChaoticAmazon() {
               </ul>
 
               <div className="flex flex-wrap gap-2 pt-2">
-                <button className="rounded-full bg-amber-400 px-5 py-1.5 text-sm font-bold text-slate-900 hover:bg-amber-500">
+                <button data-an-id="buy-button" className="rounded-full bg-amber-400 px-5 py-1.5 text-sm font-bold text-slate-900 hover:bg-amber-500">
                   Add to Cart
                 </button>
                 <button className="rounded-full bg-orange-500 px-5 py-1.5 text-sm font-bold text-white hover:bg-orange-600">
@@ -211,7 +211,7 @@ export function ChaoticAmazon() {
           </div>
 
           {/* "About this item" wall of text */}
-          <section className="mt-5 border-t border-slate-200 pt-4">
+          <section data-an-id="product-description" className="mt-5 border-t border-slate-200 pt-4">
             <h2 className="mb-2 text-base font-bold">Product description</h2>
             <p className="text-sm leading-relaxed">
               Step up your charging game with the Anker Premium 100W USB-C cable. Whether
@@ -232,7 +232,7 @@ export function ChaoticAmazon() {
           </section>
 
           {/* Reviews preview */}
-          <section className="mt-5 border-t border-slate-200 pt-4">
+          <section data-an-id="product-reviews" className="mt-5 border-t border-slate-200 pt-4">
             <h2 className="mb-2 text-base font-bold">Top reviews</h2>
             {[
               { name: "Sarah K.", stars: 5, text: "Best cable I've ever owned. Charges my MacBook in 90 minutes flat. The braided sleeve doesn't tangle." },

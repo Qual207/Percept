@@ -1,39 +1,55 @@
 import OpenAI from "openai";
-import type { Plan } from "../types/intent.js";
+import type { Plan, PageElement } from "../types/intent.js";
 
 /**
  * Calls OpenAI with strict JSON-schema structured outputs.
  * Returns null if the API key is missing or the call fails — the caller
  * should fall back to the keyword-based parser in that case.
- *
- * Model can be overridden via OPENAI_MODEL env var. Default is gpt-4o-mini
- * which is fast, cheap, and supports response_format json_schema strict.
  */
 
-const SYSTEM_PROMPT = `You are an adaptive UI agent for users with cognitive accessibility needs (ADHD, dyslexia, sensory sensitivity).
-A user has spoken a free-form request describing how they feel about the current webpage.
-Your job is to translate that request into a list of UI actions across three layers:
+const SYSTEM_PROMPT = `You are a surgical UI accessibility agent. The user speaks or types a specific request about a webpage.
 
-1. STRUCTURAL: hide / dim / center elements, reduce visual clutter.
-2. TYPOGRAPHIC: scale font, set line height, cap line length.
-3. ATTENTIONAL: spotlight the main content, dim the periphery.
+You will receive:
+1. The user's transcript
+2. A catalog of targetable page elements, each with a human-readable label and a CSS selector
 
-Principles:
-- Be GRADUAL. Prefer dim over hide. Scale changes by intensity (0..1).
-- Be NON-DESTRUCTIVE. Don't remove core functionality.
-- Prefer the data-an-role attribute selectors when available:
-    [data-an-role='main'], [data-an-role='nav'], [data-an-role='aside-left'],
-    [data-an-role='aside-right'], [data-an-role='promo'], [data-an-role='footer'].
-- Reason concisely (one short sentence) for the user-facing toast.
-- For action fields you don't need, use null (not omitted).
+Your job: translate ONLY the user's request into the minimum set of actions needed. Match user intent to the best element from the catalog.
 
-Return only the structured plan via the JSON schema.`;
+RULE 1 — BE LITERAL. Only change what the user asked for. "Make the price bigger" → only scaleElement on the price. Do NOT also hide sidebars or change backgrounds unless asked.
 
-/**
- * OpenAI strict mode requires every property to appear in `required`,
- * and optional fields are expressed as a union with null. The frontend's
- * action dispatcher already handles null/undefined gracefully.
- */
+RULE 2 — USE THE MOST SPECIFIC SELECTOR. Prefer [data-an-id='...'] selectors (specific elements) over [data-an-role='...'] (broad regions) when the user names a specific thing (price, image, title, button).
+
+RULE 3 — ACTIONS ARE ADDITIVE. Prior changes are already applied. Don't re-apply things not mentioned in this request.
+
+AVAILABLE ACTIONS:
+Layer "structural":
+  - hide          selector required — completely remove element (use for "remove", "hide the X")
+  - dim           selector + opacity 0.05–0.25 — fade element out (use for "dim", "tone down")
+  - centerMain    selector required — collapse to single reading column
+  - killAnimations — stop all movement
+
+Layer "typographic":
+  - setFontScale      value: root multiplier (e.g. 1.5) — scales ALL text globally (use for "make everything bigger", "larger text globally")
+  - scaleElement      selector + value: multiplier on just that element (e.g. 2.0 = double) — USE THIS when user targets a specific element ("make the price bigger", "enlarge the title")
+  - setMaxWidth       value: px reading width cap
+  - setLineHeight     value: multiplier 1.6–2.0
+  - setLetterSpacing  value: em 0.02–0.08
+  - setFontFamily     color: "dyslexic" | "clean" | "default"
+
+Layer "attentional":
+  - spotlight     selector required — dim everything else, focus on one element
+  - setBackground color: "warm" | "cream" | "dark" | "gray" | "white"
+
+NAMED MODES — apply full preset only when user explicitly says the mode name:
+  "flow mode"     → hide [data-an-role='aside-left'] + [data-an-role='aside-right'] + [data-an-role='promo'], dim [data-an-role='nav'] 0.1, centerMain [data-an-role='main'], setFontScale 1.5, setMaxWidth 660, setLineHeight 1.9, setBackground warm, spotlight [data-an-role='main']
+  "scan mode"     → hide [data-an-role='aside-left'] + [data-an-role='aside-right'], centerMain [data-an-role='main'], setFontScale 1.2, setLetterSpacing 0.03, setFontFamily clean
+  "rest mode"     → hide aside-left + aside-right + promo + footer, dim nav 0.08, setFontScale 1.6, setLineHeight 2.0, setBackground warm, setLetterSpacing 0.04, killAnimations
+
+reason_short: one short sentence (max 60 chars) saying what changed.
+For unused action fields, use null.
+
+Return only the structured plan.`;
+
 const PLAN_SCHEMA = {
   name: "ui_plan",
   strict: true,
@@ -65,17 +81,23 @@ const PLAN_SCHEMA = {
                 "hide",
                 "dim",
                 "centerMain",
+                "killAnimations",
                 "setFontScale",
+                "scaleElement",
                 "setMaxWidth",
                 "setLineHeight",
+                "setLetterSpacing",
+                "setFontFamily",
                 "spotlight",
+                "setBackground",
               ],
             },
             selector: { type: ["string", "null"] },
             value: { type: ["number", "null"] },
             opacity: { type: ["number", "null"] },
+            color: { type: ["string", "null"] },
           },
-          required: ["layer", "type", "selector", "value", "opacity"],
+          required: ["layer", "type", "selector", "value", "opacity", "color"],
         },
       },
     },
@@ -88,9 +110,17 @@ function isKeyMissing(): boolean {
   return !k || k.startsWith("sk-...");
 }
 
+function formatElementCatalog(elements: PageElement[]): string {
+  if (elements.length === 0) return "Page elements: none detected";
+  const lines = elements.map(
+    (el) => `  - [${el.type}] ${el.label} → ${el.selector}`,
+  );
+  return `Page elements:\n${lines.join("\n")}`;
+}
+
 export async function planFromOpenAI(
   transcript: string,
-  domSummary: string[] | undefined,
+  pageElements: PageElement[] | undefined,
 ): Promise<Plan | null> {
   if (isKeyMissing()) return null;
 
@@ -99,9 +129,7 @@ export async function planFromOpenAI(
 
   const userMessage = [
     `Transcript: "${transcript}"`,
-    domSummary && domSummary.length > 0
-      ? `Page landmarks present: ${domSummary.join(", ")}`
-      : "Page landmarks: unknown",
+    formatElementCatalog(pageElements ?? []),
   ].join("\n\n");
 
   try {

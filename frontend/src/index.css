@@ -10,7 +10,9 @@
   --an-font-scale: 1;
   --an-line-height: 1.45;
   --an-max-width: none;
-  --an-transition: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --an-letter-spacing: 0em;
+  --an-font-family: inherit;
+  --an-transition: 450ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Smooth all engine-driven changes. */
@@ -26,7 +28,10 @@
     margin var(--an-transition),
     padding var(--an-transition),
     font-size var(--an-transition),
-    line-height var(--an-transition);
+    line-height var(--an-transition),
+    letter-spacing var(--an-transition),
+    transform var(--an-transition),
+    box-shadow var(--an-transition);
 }
 
 /* ----------------------------------------------------------------------------
@@ -37,8 +42,8 @@
 }
 
 .an-dim {
-  opacity: var(--an-dim-opacity, 0.3);
-  filter: saturate(0.6);
+  opacity: var(--an-dim-opacity, 0.1) !important;
+  filter: saturate(0.3) blur(0.3px);
   pointer-events: none;
 }
 
@@ -47,23 +52,54 @@
   z-index: 5;
   opacity: 1 !important;
   filter: none !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18), 0 8px 40px rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
 }
 
 .an-reflow-center {
-  max-width: var(--an-max-width, 720px) !important;
+  max-width: var(--an-max-width, 700px) !important;
   margin-left: auto !important;
   margin-right: auto !important;
   float: none !important;
 }
 
-/* When the engine is active, scale type globally. */
-.an-active body,
-.an-active [data-an-role="main"] {
-  font-size: calc(1rem * var(--an-font-scale));
+/* ----------------------------------------------------------------------------
+ * Active state: apply typographic variables when the engine has any batches.
+ * Font scale is now set directly on <html> via actions.ts (fixes rem cascade).
+ * These rules apply line-height, letter-spacing, and font-family.
+ * -------------------------------------------------------------------------- */
+.an-active body {
   line-height: var(--an-line-height);
+  letter-spacing: var(--an-letter-spacing);
+  font-family: var(--an-font-family);
+  transition:
+    background-color 500ms ease,
+    color 500ms ease,
+    line-height var(--an-transition),
+    letter-spacing var(--an-transition),
+    font-family var(--an-transition);
 }
 
+.an-active [data-an-role="main"],
 .an-active [data-an-role="main"] p,
-.an-active [data-an-role="main"] li {
+.an-active [data-an-role="main"] li,
+.an-active [data-an-role="main"] h1,
+.an-active [data-an-role="main"] h2,
+.an-active [data-an-role="main"] h3 {
   line-height: var(--an-line-height);
+  letter-spacing: var(--an-letter-spacing);
+}
+
+/* ----------------------------------------------------------------------------
+ * Flash animation — briefly highlights elements when a change is applied.
+ * -------------------------------------------------------------------------- */
+@keyframes an-flash-in {
+  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  25%  { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.55); }
+  100% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0); }
+}
+
+.an-flash {
+  animation: an-flash-in 700ms ease-out forwards;
+  border-radius: 4px;
 }
