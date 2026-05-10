@@ -463,7 +463,7 @@ export function DiagnosticModal({ initial, onComplete, onDismiss }: Props) {
                 onClick={finish}
                 className="rounded-full bg-indigo-600 px-8 py-3 text-base font-semibold text-white hover:bg-indigo-700"
               >
-                Start using Adaptive Web
+                Start using Percept
               </button>
             </div>
           )}

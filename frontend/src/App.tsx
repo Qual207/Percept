@@ -4,18 +4,26 @@ import { MicOverlay } from "./components/MicOverlay";
 import { Toaster } from "./components/Toaster";
 import { DiagnosticModal } from "./components/DiagnosticModal";
 import { showToast } from "./components/Toaster";
-import { loadProfile, saveProfile, buildProfileBaseline } from "./lib/profile";
+import {
+  DEFAULT_PROFILE,
+  saveProfile,
+  buildProfileBaseline,
+  clearProfile,
+} from "./lib/profile";
 import { applyPlan, reset } from "./lib/engine";
 import type { UserProfile } from "./lib/profile";
 
 export default function App() {
-  const [profile, setProfile] = useState<UserProfile>(() => loadProfile());
+  // Demo behavior: every page load starts with a fresh, uncalibrated profile.
+  // This guarantees the "Calibrate for your needs" CTA is always visible
+  // on reload, and no stale changes carry over between test runs.
+  const [profile, setProfile] = useState<UserProfile>(() => ({ ...DEFAULT_PROFILE }));
   const [diagnosticOpen, setDiagnosticOpen] = useState(false);
 
-  // On mount: always start completely fresh — clear any DOM mutations left
-  // by HMR or a previous session. Profile preferences are NOT auto-applied
-  // here; they only take effect when the user explicitly completes the form.
+  // On mount: wipe any persisted profile from localStorage and clear any
+  // DOM mutations left by HMR or a prior session.
   useEffect(() => {
+    clearProfile();
     reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally empty — only runs on first mount

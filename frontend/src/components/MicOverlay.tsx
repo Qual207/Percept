@@ -133,7 +133,12 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
     setFullReasoning("");
     setLastSource(null);
     try {
-      const text = await recordOnce();
+      const text = await recordOnce({
+        // Generous defaults so users can pause mid-thought without being cut off.
+        silenceMs: 1600,
+        maxMs: 15000,
+        onPartial: (partial) => setLiveText(partial),
+      });
       startRequest(text);
     } catch (err: any) {
       const msg = String(err?.message ?? err);
@@ -201,7 +206,7 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-[999] flex w-[340px] flex-col gap-3 rounded-2xl border border-slate-200 bg-white/97 p-4 shadow-2xl backdrop-blur"
+      className="fixed bottom-6 right-6 z-[999] flex w-[340px] flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl backdrop-blur-[2px]"
       data-an-role="mic-overlay"
     >
       {/* Header row */}
@@ -224,7 +229,7 @@ export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold text-slate-900">Adaptive Web</span>
+            <span className="text-sm font-semibold text-slate-900">Percept</span>
             {profile.calibrated && (
               <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
                 calibrated
