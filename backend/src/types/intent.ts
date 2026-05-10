@@ -47,6 +47,8 @@ export interface IntentRequest {
   transcript: string;
   domSummary?: string[];
   pageElements?: PageElement[];
+  /** Natural-language summary of the user's perceptual profile from the frontend. */
+  profileSummary?: string;
 }
 
 export interface IntentResponse extends Plan {

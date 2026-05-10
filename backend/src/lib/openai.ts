@@ -121,16 +121,19 @@ function formatElementCatalog(elements: PageElement[]): string {
 export async function planFromOpenAI(
   transcript: string,
   pageElements: PageElement[] | undefined,
+  profileSummary?: string,
 ): Promise<Plan | null> {
   if (isKeyMissing()) return null;
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
-  const userMessage = [
+  const parts = [
     `Transcript: "${transcript}"`,
     formatElementCatalog(pageElements ?? []),
-  ].join("\n\n");
+  ];
+  if (profileSummary) parts.push(`User profile: ${profileSummary}`);
+  const userMessage = parts.join("\n\n");
 
   try {
     const completion = await client.chat.completions.create({

@@ -3,6 +3,12 @@ import { isSpeechSupported, recordOnce } from "../lib/speech";
 import { requestIntent } from "../lib/intentClient";
 import { applyPlan, undoLast, reset, appliedBatchCount } from "../lib/engine";
 import { showToast } from "./Toaster";
+import type { UserProfile } from "../lib/profile";
+
+interface Props {
+  profile: UserProfile;
+  onOpenDiagnostic: () => void;
+}
 
 type Status = "idle" | "listening" | "thinking" | "applied" | "error";
 
@@ -28,14 +34,13 @@ function flashChangedElements() {
   );
   els.forEach((el) => {
     el.classList.remove("an-flash");
-    // Force reflow so re-adding works even if already present
     void el.offsetWidth;
     el.classList.add("an-flash");
     setTimeout(() => el.classList.remove("an-flash"), 750);
   });
 }
 
-export function MicOverlay() {
+export function MicOverlay({ profile, onOpenDiagnostic }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [liveText, setLiveText] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -62,14 +67,14 @@ export function MicOverlay() {
       const text = await recordOnce();
       setLiveText(text);
       setStatus("thinking");
-      const plan = await requestIntent(text);
+      const plan = await requestIntent(text, profile);
       afterApply(text, plan);
     } catch (err: any) {
       const msg = String(err?.message ?? err);
       if (msg.includes("not-allowed") || msg.includes("denied")) {
         showToast("Mic permission denied", "warn");
       } else if (msg.includes("speech_unsupported")) {
-        showToast("Speech not supported — use Chrome or type below", "warn");
+        showToast("Speech not supported — use the text input below", "warn");
       } else if (msg.includes("no_speech")) {
         showToast("Didn't catch that — try again", "warn");
       } else {
@@ -87,7 +92,7 @@ export function MicOverlay() {
     if (!text) return;
     setLiveText(text);
     setStatus("thinking");
-    requestIntent(text)
+    requestIntent(text, profile)
       .then((plan) => {
         afterApply(text, plan);
         form.reset();
@@ -154,7 +159,14 @@ export function MicOverlay() {
           <MicIcon />
         </button>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-slate-900">Adaptive Web</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-slate-900">Adaptive Web</span>
+            {profile.calibrated && (
+              <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                calibrated
+              </span>
+            )}
+          </div>
           <div className="truncate text-xs text-slate-500">{statusText}</div>
         </div>
         {history.length > 0 && (
@@ -171,7 +183,7 @@ export function MicOverlay() {
 
       {!supported && (
         <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-800">
-          Voice unavailable. Use Chrome / Edge, or type below.
+          Voice unavailable in this browser. Use Chrome / Edge for mic support.
         </p>
       )}
 
@@ -192,7 +204,7 @@ export function MicOverlay() {
         </button>
       </form>
 
-      {/* Undo / Reset */}
+      {/* Undo + Reset */}
       <div className="flex gap-2">
         <button
           type="button"
@@ -211,6 +223,15 @@ export function MicOverlay() {
           Reset all
         </button>
       </div>
+
+      {/* Diagnostic / calibration link */}
+      <button
+        type="button"
+        onClick={onOpenDiagnostic}
+        className="text-left text-[11px] text-slate-400 hover:text-slate-600"
+      >
+        {profile.calibrated ? "Recalibrate preferences →" : "Calibrate for your needs →"}
+      </button>
 
       {/* Transcript history */}
       {showHistory && history.length > 0 && (
@@ -243,7 +264,7 @@ export function MicOverlay() {
             onClick={() => {
               setLiveText(p);
               setStatus("thinking");
-              requestIntent(p)
+              requestIntent(p, profile)
                 .then((plan) => afterApply(p, plan))
                 .catch(() => {
                   showToast("Something went wrong", "warn");
