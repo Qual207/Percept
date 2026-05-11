@@ -80,7 +80,7 @@ flowchart LR
 
 ## The LLM agent
 
-The LLM is not free-writing JavaScript. It is constrained to a strict JSON schema. Every response must include:
+We constrain the LLM to a strict JSON schema so that every response must include:
 
 - `reason_short` — a concise user-facing explanation.
 - `reasoning` — a short explanation of how the model interpreted the request.
