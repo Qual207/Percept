@@ -1,201 +1,171 @@
-# Adaptive Web — Voice-Controlled Calm Mode
+# Percept
 
-A 3-hour MVP demo: a voice-controlled adaptive UI overlay that calms a chaotic webpage in real time. Built for users with ADHD, dyslexia, and sensory sensitivity.
+Percept is a voice-controlled adaptive interface layer for cognitive accessibility. It lets a user look at a chaotic webpage and say things like:
 
-The demo runs on a hosted web app. The 3-layer engine is written as a portable JS module so it can be wrapped in a Chrome extension later — but the MVP target is a frictionless web demo, not an extension.
+- "This is too much."
+- "Make the reviews bigger."
+- "Hide the sidebars."
+- "Make it easier to read."
 
-## The 90-second demo story
+Percept turns that natural-language request into a structured UI action plan, applies it directly to the webpage, explains what it changed, and lets the user undo or reset everything safely.
 
-1. Open the page. It is *aggressively* chaotic — clashing colors, six sidebars worth of recommendations, blinking "Lightning Deals", dense product grids, link-soup footers. Let the chaos speak.
-2. Narrate: "Now imagine you have ADHD or dyslexia. Your eyes can't anchor."
-3. Click the floating mic (bottom right). Say: **"This is too much, I can't focus."**
-4. Toast: *"Detected overload — simplifying layout"*.
-5. Page transforms in ~600ms: sidebars dim out, nav collapses, main content centers and widens its line-height, type scales up, everything except the product the user is reading dims to ~35% opacity.
-6. Say: **"Make the text even bigger."** — incremental change applied, prior state preserved.
-7. Click **Reset** → back to chaos. Demo loops.
+The demo is built around intentionally overwhelming ecommerce and news pages, but the underlying methodology is portable: Percept crawls the live DOM, grounds an LLM in real page elements, and applies reversible CSS/DOM transformations through a 3-layer adaptive UI engine.
 
-## Project structure
+## Inspiration
 
-```
-ai-native/
-├── README.md
-├── package.json              # root: orchestrates dev + tests across both
-├── .gitignore
-├── backend/                  # Express + TS + OpenAI SDK + Vitest
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── .env.example          # OPENAI_API_KEY=... + OPENAI_MODEL
-│   ├── src/
-│   │   ├── index.ts          # server bootstrap
-│   │   ├── routes/intent.ts  # POST /api/intent
-│   │   ├── lib/
-│   │   │   ├── openai.ts     # OpenAI structured-output (json_schema strict)
-│   │   │   └── fallback.ts   # keyword-based parser (demo safety net)
-│   │   └── types/intent.ts   # shared schema
-│   └── __tests__/fallback.test.ts
-└── frontend/                 # Vite + React 18 + TS + Tailwind + Vitest
-    ├── package.json
-    ├── tsconfig.json
-    ├── vite.config.ts
-    ├── tailwind.config.ts
-    ├── postcss.config.js
-    ├── index.html
-    └── src/
-        ├── main.tsx
-        ├── App.tsx
-        ├── index.css         # tailwind + .an-* utility classes + CSS variables
-        ├── pages/ChaoticAmazon.tsx        # the demo's "before" state
-        ├── components/
-        │   ├── MicOverlay.tsx             # floating mic + Web Speech API
-        │   └── Toaster.tsx
-        ├── lib/
-        │   ├── engine.ts                  # apply / undoLast / reset (stack)
-        │   ├── actions.ts                 # 7 actions, each returns its undo
-        │   ├── speech.ts                  # Web Speech API wrapper
-        │   ├── intentClient.ts            # POST → backend, with offline fallback
-        │   └── fallbackIntent.ts          # mirrors backend/lib/fallback.ts
-        ├── types/intent.ts                # mirrors backend/src/types/intent.ts
-        └── __tests__/
-            ├── engine.test.ts
-            └── fallbackIntent.test.ts
-```
+Modern websites are optimized for conversion, not cognition. Ecommerce pages, news pages, dashboards, and social feeds all compete for attention with sidebars, carousels, ads, recommendations, banners, dense typography, and motion.
 
-## Quickstart
+For many neurodivergent users — including people with ADHD, dyslexia, sensory sensitivity, or cognitive fatigue — the problem is not that the content is unavailable. The problem is that the interface makes it too expensive to process.
 
-Prerequisites: Node 20+, Chrome or Edge (Web Speech API).
+Percept asks a different question:
 
-```powershell
-# from repo root, one-time install
-npm run install:all
+> What if the webpage could adapt to the user's perceptual needs in real time?
 
-# (optional) configure OpenAI — without this the keyword fallback is used
-copy backend\.env.example backend\.env
-# then edit backend\.env and set OPENAI_API_KEY=sk-...
+Instead of forcing users to hunt through settings or install rigid reader modes, Percept gives them a small voice interface and lets them describe what they need in plain language.
 
-# run both backend and frontend together
-npm run dev
-```
+## What it does
 
-- Frontend: http://localhost:5173
-- Backend health: http://localhost:3001/health
+Percept sits in the bottom-right corner of the page as a persistent overlay. The user can complete a short visual calibration, then speak or type a request. Percept sends that request, along with a live catalog of the page's DOM elements, to an LLM agent. The agent returns a typed action plan, and the frontend engine applies those changes across three layers:
 
-If you don't want concurrently, run two terminals:
+### 1. Structural layer
 
-```powershell
-# terminal 1
-cd backend; npm run dev
+Reflows the page by dimming or hiding sidebars, collapsing clutter, centering the main content, and removing peripheral distractions.
 
-# terminal 2
-cd frontend; npm run dev
-```
+### 2. Typographic layer
 
-## Tests
+Improves readability through font scaling, line height, letter spacing, max-width control, background changes, and cleaner font options.
 
-```powershell
-npm test                          # both packages
-npm --prefix frontend test        # frontend only
-npm --prefix backend test         # backend only
-```
+### 3. Attentional layer
 
-The tests cover:
+Guides focus with soft spotlighting and ambient dimming so the current task or content region visually wins over the rest of the page.
 
-- **Engine**: every action's apply + undo, the batch stack, reset(), CSS variable restoration, the global `an-active` class, and graceful handling of bad selectors.
-- **Fallback intent parser** (frontend + backend): keyword detection, plan merging / dedup, soft default for unknown input, schema validity (only known action types).
+Every change is reversible. Percept tracks applied actions in an undo stack and can reset the page back to its original state.
 
-## Architecture
+## How we built it
+
+Percept is a TypeScript monorepo with a React/Vite frontend and an Express backend.
+
+### Frontend
+
+The frontend is built with React 18, Vite, TypeScript, and Tailwind CSS. It contains:
+
+- `MicOverlay.tsx` — the Percept voice/text control panel.
+- `DiagnosticModal.tsx` — the visual calibration flow.
+- `domCrawler.ts` — a live DOM crawler that creates a catalog of targetable page elements.
+- `speech.ts` — a Web Speech API wrapper with continuous recognition and custom silence detection.
+- `actions.ts` — the transformation action catalog.
+- `engine.ts` — the reversible action stack and pub-sub state layer.
+
+### Backend
+
+The backend is a TypeScript Express API with OpenAI integration:
+
+- `POST /api/intent` receives the user transcript, page element catalog, and user profile.
+- `openai.ts` calls GPT-4o using strict JSON-schema structured outputs.
+- The returned plan is guaranteed to match our action schema before it reaches the DOM engine.
+
+## Technical architecture
 
 ```mermaid
 flowchart LR
-  Mic[Mic Button] -->|Web Speech API| Transcript
-  Transcript -->|POST /api/intent| Backend
-  Backend -->|OpenAI structured output| Plan["Action Plan JSON"]
-  Backend -->|API key missing or error| Fallback["Keyword fallback"]
-  Fallback --> Plan
-  Plan --> Engine["frontend engine.ts"]
-  Engine --> Structural["Layer 1: Structural<br/>hide / dim / centerMain"]
-  Engine --> Typographic["Layer 2: Typographic<br/>setFontScale / setMaxWidth / setLineHeight"]
-  Engine --> Attentional["Layer 3: Attentional<br/>spotlight"]
-  Structural --> DOM[DOM + injected CSS]
-  Typographic --> DOM
-  Attentional --> DOM
-  Engine -.-> History["Undo stack<br/>(per voice input)"]
+  User[Voice or typed request] --> Speech[Web Speech API]
+  Speech --> Crawler[Live DOM crawler]
+  Crawler --> Backend[Express intent API]
+  Backend --> OpenAI[GPT-4o structured output]
+  OpenAI --> Plan[Typed UI action plan]
+  Plan --> Engine[3-layer UI engine]
+  Engine --> DOM[Reversible DOM + CSS mutation]
+  Engine --> Undo[Undo / reset stack]
 ```
 
-### The action contract
+## The LLM agent
 
-Every voice request resolves to a `Plan`:
+The LLM is not free-writing JavaScript. It is constrained to a strict JSON schema. Every response must include:
+
+- `reason_short` — a concise user-facing explanation.
+- `reasoning` — a short explanation of how the model interpreted the request.
+- `intensity` — a numeric adaptation strength.
+- `actions` — an array of typed UI actions.
+
+Example action:
 
 ```ts
 {
-  reason_short: "Detected overload — simplifying layout",
-  intensity: 0.7,
-  actions: [
-    { layer: "structural",  type: "hide",         selector: "[data-an-role='aside-left']" },
-    { layer: "structural",  type: "dim",          selector: "[data-an-role='nav']", opacity: 0.25 },
-    { layer: "structural",  type: "centerMain",   selector: "[data-an-role='main']" },
-    { layer: "typographic", type: "setFontScale", value: 1.15 },
-    { layer: "typographic", type: "setMaxWidth",  value: 720 },
-    { layer: "typographic", type: "setLineHeight",value: 1.6 },
-    { layer: "attentional", type: "spotlight",    selector: "[data-an-role='main']" }
-  ]
+  layer: "typographic",
+  type: "scaleElement",
+  selector: "[data-an-id='product-reviews']",
+  value: 1.4,
+  opacity: null,
+  color: null
 }
 ```
 
-The frontend engine looks up each action in [`actions.ts`](frontend/src/lib/actions.ts), executes it, and pushes the returned `undo` closure onto a stack. `reset()` pops the entire stack in reverse order — the page returns to its exact original state.
+The model receives a catalog of real page elements before every request, so it can choose from known selectors instead of hallucinating DOM targets.
 
-### Why `data-an-role` selectors?
+## Personalization
 
-Element class names on a real Amazon clone are noisy and brittle. We tag the page with `data-an-role` so:
+Percept includes a short visual diagnostic that builds a lightweight perceptual profile:
 
-1. The LLM has a tiny, stable vocabulary of selectors it knows are safe.
-2. Restyles don't break the engine.
-3. Wrapping the engine in a Chrome extension later just means swapping the page-side tagging for a heuristic that infers roles from `<nav>`, `<main>`, `<aside>`, etc.
+- Density tolerance
+- Text scale preference
+- Contrast preference
+- Reading chunking preference
+- Focus style
 
-### Demo safety: two fallback layers
+That profile is used in two places:
 
-1. If the backend returns an error or the network is down, the frontend's `intentClient` falls back to its own keyword parser ([`fallbackIntent.ts`](frontend/src/lib/fallbackIntent.ts)) — the demo still works fully offline.
-2. If the backend is up but `OPENAI_API_KEY` is unset, the backend itself uses the same keyword parser ([`backend/src/lib/fallback.ts`](backend/src/lib/fallback.ts)).
+1. It is sent to the LLM so the model can reason with the user's needs in mind.
+2. It post-processes the returned action plan on the client, scaling font sizes, dimming intensity, and focus behavior.
 
-This is intentional. On stage, an API outage should never kill the demo.
+This means the same request can produce different UI adaptations for different users.
 
-## MVP acceptance criteria
+## Challenges we ran into
 
-A run is "done" when **all** of these are true:
+### Getting the LLM to produce reliable UI changes
 
-- [ ] `npm run install:all` completes without errors
-- [ ] `npm test` passes (both packages)
-- [ ] `npm run dev` starts both servers; backend logs whether it's using LLM or fallback
-- [ ] Visiting http://localhost:5173 shows the chaotic Amazon clone
-- [ ] Clicking the mic and saying "this is too much" applies a visible transform within ~3 seconds
-- [ ] The toast shows the LLM's `reason_short` (or the fallback's)
-- [ ] Saying a second phrase ("make it bigger") layers on top — does not reset
-- [ ] **Undo** removes the most recent batch only; **Reset** restores the original page exactly
-- [ ] Typing into the text input (instead of using the mic) works as a non-voice fallback
-- [ ] On a Firefox/no-mic browser, the overlay still loads and the typed-input fallback works
+Early versions asked the model to infer selectors directly. That was fragile. The fix was to crawl the DOM first, send the model a verified element catalog, and force the response through a strict JSON schema.
 
-## Demo script (cheat sheet)
+### Avoiding destructive page changes
 
-| Beat | Action | Expected |
-|---|---|---|
-| 0 | Page loads | Chaotic Amazon-clone, mic in bottom-right |
-| 1 | "There's too much going on" | Sidebars dim, main centers, type scales up, spotlight on product |
-| 2 | "Make the text even bigger" | Font scale increases further, prior layout preserved |
-| 3 | Click **Reset** | Page returns to chaos |
-| 4 | "I can't focus" (alt path) | Periphery dims, spotlight on main, structure mostly preserved |
-| 5 | "Even simpler" | Most aggressive flatten — sidebars hidden, narrow column |
+We wanted the page to adapt without breaking. Each engine action returns an undo closure that restores the exact previous state. Reset unwinds the whole stack.
 
-## Troubleshooting
+### Protecting the Percept overlay
 
-- **Mic does nothing**: Web Speech API works in Chrome / Edge over `localhost` or HTTPS. Firefox is not supported. The text input is the universal fallback.
-- **Mic permission popup mid-demo**: Click the mic *once* on the demo machine before going on stage. Permission is sticky per-origin.
-- **CORS error**: Backend `ALLOWED_ORIGIN` must match the frontend URL. Default is `http://localhost:5173`. Edit `backend/.env`.
-- **Tailwind classes missing at runtime**: The engine's `.an-*` classes are listed in `tailwind.config.ts` `safelist` — if you rename them, update both places.
-- **LLM returns weird selectors**: The system prompt restricts the model to `[data-an-role='...']` selectors. If you add new page sections, also tag them with `data-an-role`.
+Once the engine could dim, scale, and reflow the page, we needed to make sure it never changed the control panel itself. The overlay and toast are protected roles and are filtered out of every action selector.
 
-## Stretch (post-3-hour, in priority order)
+### Speech timing
 
-1. Spotlight via `radial-gradient` overlay instead of opacity changes.
-2. Undo button → keyboard shortcut (`Ctrl/Cmd-Z`).
-3. Diagnostic onboarding (3 sliders modal on first load → persists `userProfile` in `localStorage`, scales every action's intensity).
-4. Chrome extension shell (MV3) — content script that auto-tags `<nav>/<main>/<aside>` with `data-an-role` and reuses the same engine.
-5. Streaming partial transcripts so the page starts adapting before the user finishes speaking.
+The browser's default speech recognition often stops too early. We switched to continuous/interim recognition and added our own silence timer so users can pause mid-thought without being cut off.
+
+### Demo reliability
+
+During development, CORS and port conflicts caused failed LLM calls to fall back silently. We added stricter dev server ports, more permissive localhost CORS in development, and visible UI states so users can tell whether the LLM or fallback path handled a request.
+
+## Accomplishments we're proud of
+
+- A real voice-to-LLM-to-DOM pipeline that visibly changes the page.
+- Strict structured outputs from GPT-4o instead of brittle natural-language parsing.
+- A reversible UI engine with undo and reset.
+- A live DOM crawler that makes the LLM page-aware.
+- Personalized adaptations based on a visual diagnostic.
+- A transparent reasoning panel that shows how the agent interpreted the user's request.
+- A design that can move from hosted demo to browser extension without rewriting the core engine.
+
+## What we learned
+
+Accessibility tools need to be adaptable, but they also need to be trustworthy. A user should always know what changed, why it changed, and how to undo it.
+
+We also learned that LLMs become much more useful for interface control when they are grounded in the live DOM and constrained to a typed action space. The model should decide intent and planning — not invent arbitrary code.
+
+## Built with
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Node.js
+- Express
+- OpenAI GPT-4o
+- Web Speech API
+- Vitest
+
