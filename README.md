@@ -1,4 +1,4 @@
-# Percept
+# Percept (1st Place Grand Prize at Build Smth AI-Native Hackathon @Cal)
 
 Percept is a voice-controlled adaptive interface layer for cognitive accessibility. It lets a user look at a chaotic webpage and say things like:
 
