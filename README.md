@@ -1,4 +1,4 @@
-# Percept
+# Percept (1st Place Grand Prize at Build Smth AI-Native Hackathon @Cal)
 
 Percept is a voice-controlled adaptive interface layer for cognitive accessibility. It lets a user look at a chaotic webpage and say things like:
 
@@ -80,7 +80,7 @@ flowchart LR
 
 ## The LLM agent
 
-The LLM is not free-writing JavaScript. It is constrained to a strict JSON schema. Every response must include:
+We constrain the LLM to a strict JSON schema so that every response must include:
 
 - `reason_short` — a concise user-facing explanation.
 - `reasoning` — a short explanation of how the model interpreted the request.
